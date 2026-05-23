@@ -42,6 +42,7 @@ LANG_LIST_ZH = '["en-US","de-DE","fr-FR","ko-KR","ja-JP","es-419","es-ES","it-IT
 HTTP_PORT = 47123
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 HOOK_PATH = Path(__file__).resolve().parent / "hook.js"
+PRELOAD_SRC = Path(__file__).resolve().parent / "preload-zh.js"
 
 
 def load_hook() -> str:
@@ -101,6 +102,7 @@ def prepare_patches() -> None:
     shutil.copy2(RESOURCES / "statsig-zh-CN.json", PATCH_DIR / "statsig-zh-CN.json")
     manifest = {"remote_index": REMOTE_INDEX, "remote_url": REMOTE_INDEX_URL, "version": 4}
     (PATCH_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", "utf-8")
+    shutil.copy2(PRELOAD_SRC, PATCH_DIR / "preload.js")
     print(f"Prepared patches in {PATCH_DIR}")
 
 
@@ -144,8 +146,11 @@ def inject_hook() -> None:
 
     content = read_asar_file(ASAR, ".vite/build/index.js").decode("utf-8", errors="replace")
     marker = '"use strict";'
-    if content.lstrip().startswith("(function(){try{const{app,session"):
-        content = content[content.find(marker) :]
+    idx = content.find(marker)
+    if idx >= 0:
+        content = content[idx:]
+    elif content.lstrip().startswith("(function"):
+        raise SystemExit("Could not locate main bundle marker in app.asar")
     new_content = load_hook() + "\n" + content.lstrip("\n")
 
     work = Path("/tmp/claude-zh-1p-asar-work")
@@ -200,7 +205,7 @@ def main() -> int:
         raise SystemExit(f"Install Claude Desktop first: {APP}")
     if not RESOURCES.exists():
         raise SystemExit(f"Missing resources dir: {RESOURCES}")
-    print("Claude Desktop 官方账号简体中文安装器 v6")
+    print("Claude Desktop 官方账号简体中文安装器 v12（语言包 HTTP + 注入）")
     quit_claude()
     prepare_patches()
     inject_hook()
@@ -209,7 +214,7 @@ def main() -> int:
     print("\n完成。请重新打开 Claude：")
     print("  1. 完全退出 Claude (Cmd+Q)")
     print("  2. 重新打开 Claude")
-    print("  3. 左下角头像 -> Language -> 简体中文")
+    print("  3. 界面应自动显示中文（Language 菜单可能仍显示 English，不影响使用）")
     print(f"\n日志: {USER_DATA / 'zh-cn-hook.log'}")
     return 0
 
