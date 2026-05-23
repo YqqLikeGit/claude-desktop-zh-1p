@@ -41,33 +41,11 @@ LANG_LIST_RE = re.compile(
 LANG_LIST_ZH = '["en-US","de-DE","fr-FR","ko-KR","ja-JP","es-419","es-ES","it-IT","hi-IN","pt-BR","id-ID","zh-CN"]'
 HTTP_PORT = 47123
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+HOOK_PATH = Path(__file__).resolve().parent / "hook.js"
 
-HOOK = r'''
-(function(){try{const{app,session}=require("electron"),path=require("path"),fs=require("fs"),http=require("http");
-const ud=()=>{try{return app.getPath("userData")}catch(e){return path.join(require("os").homedir(),"Library/Application Support/Claude")}};
-const log=(m)=>{try{fs.appendFileSync(path.join(ud(),"zh-cn-hook.log"),new Date().toISOString()+" "+m+"\n")}catch(e){}};
-for(const d of ["Cache","Code Cache","GPUCache"])try{fs.rmSync(path.join(ud(),d),{recursive:true,force:true})}catch(e){}
-log("startup cache wiped");
-const pd=path.join(ud(),"zh-cn-patches");
-let remoteIndex="index-CYu_8WXE.js";try{remoteIndex=JSON.parse(fs.readFileSync(path.join(pd,"manifest.json"),"utf8")).remote_index||remoteIndex}catch(e){}
-const idx=path.join(pd,remoteIndex),zh=path.join(pd,"zh-CN.json"),st=path.join(pd,"statsig-zh-CN.json");
-const routes={"/index.js":idx,"/zh-cn.json":zh,"/statsig-zh-cn.json":st};
-const mime={".js":"application/javascript",".json":"application/json"};
-let port=0,ready=false;
-const server=http.createServer((req,res)=>{try{const p=routes[(req.url||"").split("?")[0]];if(!p||!fs.existsSync(p)){res.writeHead(404);return res.end("missing")}res.writeHead(200,{"Content-Type":mime[path.extname(p)]||"application/octet-stream","Access-Control-Allow-Origin":"*","Cache-Control":"no-store"});fs.createReadStream(p).pipe(res)}catch(e){res.writeHead(500);res.end(String(e))}});
-server.listen(''' + str(HTTP_PORT) + r''',"127.0.0.1",()=>{port=server.address().port;ready=true;log("local server "+port)});
-const local=(p)=>"http://127.0.0.1:"+port+p;
-const serveFile=(ses,id,file)=>{try{const body=fs.readFileSync(file);const filter=ses.webRequest.filterResponseData(id);filter.on("data",()=>{});filter.on("end",()=>{filter.write(body);filter.end()});filter.on("error",e=>log("filter err "+e));log("filter served "+path.basename(file))}catch(e){log("serveFile "+e)}};
-const attach=(ses)=>{if(!ses||ses.__zh1p)return;ses.__zh1p=1;
-ses.webRequest.onBeforeSendHeaders({urls:["*://assets-proxy.anthropic.com/*","*://claude.ai/i18n/*"]},(d,cb)=>{try{return cb({requestHeaders:{...d.requestHeaders,"Cache-Control":"no-cache","Pragma":"no-cache"}})}catch(e){}cb({})});
-ses.webRequest.onBeforeRequest({urls:["*://*/*"]},(d,cb)=>{try{const u=d.url;if(u.includes("/claude-ai/v2/assets/v1/"+remoteIndex)){log("hit index");if(ready&&fs.existsSync(idx))return cb({redirectURL:local("/index.js")});serveFile(ses,d.id,idx);return cb({})}
-if((u.includes("claude.ai/i18n/zh-CN.json")||u.includes("/i18n/zh-CN.json"))&&!u.includes("statsig")){log("hit i18n");if(ready&&fs.existsSync(zh))return cb({redirectURL:local("/zh-cn.json")});serveFile(ses,d.id,zh);return cb({})}
-if(u.includes("/i18n/statsig/zh-CN.json")){log("hit statsig");if(ready&&fs.existsSync(st))return cb({redirectURL:local("/statsig-zh-cn.json")});serveFile(ses,d.id,st);return cb({})}}catch(e){log("req err "+e)}cb({})})};
-const inj=`(()=>{try{const o=fetch;window.fetch=function(u,...a){try{const s=String(u);if(s.includes("/i18n/en-US.json"))u=s.replace("/i18n/en-US.json","/i18n/zh-CN.json")}catch(e){}return o.call(this,u,...a)};const D=Intl.DisplayNames;Intl.DisplayNames=function(l,o){const x=new D(l,o),g=x.of.bind(x);x.of=function(c){return String(c).toLowerCase()==="zh-cn"?"简体中文 (中国)":g(c)};return x}}catch(e){}})();`;
-const hookWc=(wc)=>{if(!wc||wc.__zh1pInj)return;wc.__zh1pInj=1;const run=()=>wc.executeJavaScript(inj,true).catch(()=>{});wc.on("did-start-navigation",(_,url)=>{if(String(url).includes("claude.ai"))run()});wc.on("did-finish-load",run)};
-app.on("web-contents-created",(_,wc)=>hookWc(wc));
-app.whenReady().then(async()=>{try{await session.defaultSession.clearCache();log("memory cache cleared")}catch(e){log("clearCache "+e)}try{attach(session.defaultSession);if(typeof session.getAllSessions==="function"){for(const s of session.getAllSessions())attach(s)}app.on("session-created",attach);log("hook ready")}catch(e){log("attach failed "+e)}}).catch(e=>log("whenReady "+e))}catch(e){try{require("fs").appendFileSync("/tmp/claude-zh-1p-fatal.log",String(e)+"\n")}catch(_){}}})();
-'''.strip()
+
+def load_hook() -> str:
+    return HOOK_PATH.read_text("utf-8").strip()
 
 
 def run(cmd: list[str], check: bool = True, **kw) -> subprocess.CompletedProcess:
@@ -96,7 +74,7 @@ def prepare_patches() -> None:
         fetch(REMOTE_INDEX_URL, raw)
     index_text = raw.read_text("utf-8")
     if LANG_LIST_RE.search(index_text):
-        index_text = LANG_LIST_RE.sub(LANG_LIST_ZH, index_text, count=1)
+        index_text = LANG_LIST_RE.sub(LANG_LIST_ZH, index_text)
     elif ',"zh-CN"' not in index_text:
         raise SystemExit("Remote index format changed; update LANG_LIST_RE in install.py")
     (PATCH_DIR / REMOTE_INDEX).write_text(index_text, "utf-8")
@@ -168,7 +146,7 @@ def inject_hook() -> None:
     marker = '"use strict";'
     if content.lstrip().startswith("(function(){try{const{app,session"):
         content = content[content.find(marker) :]
-    new_content = HOOK + "\n" + content.lstrip("\n")
+    new_content = load_hook() + "\n" + content.lstrip("\n")
 
     work = Path("/tmp/claude-zh-1p-asar-work")
     if work.exists():
@@ -222,7 +200,7 @@ def main() -> int:
         raise SystemExit(f"Install Claude Desktop first: {APP}")
     if not RESOURCES.exists():
         raise SystemExit(f"Missing resources dir: {RESOURCES}")
-    print("Claude Desktop 官方账号简体中文安装器 v4")
+    print("Claude Desktop 官方账号简体中文安装器 v6")
     quit_claude()
     prepare_patches()
     inject_hook()

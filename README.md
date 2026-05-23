@@ -6,12 +6,12 @@
 
 ## 原理
 
-1. 下载并 patch 远程前端 bundle，把 `zh-CN` 加入语言白名单
+1. 下载并 patch 远程前端 bundle，把 `zh-CN` 加入语言白名单（`CD=[...]`）
 2. 合并 `en-US.json` 与中文翻译包，生成完整 `zh-CN.json`
-3. 在 Claude 主进程注入启动钩子：
-   - 每次启动清除 CDN 磁盘缓存（避免加载未 patch 的旧 bundle）
-   - 本地 HTTP 服务 + `webRequest` 拦截，把远程资源替换为 patch 版本
-   - 页面注入兜底：自动把 `en-US` 语言包请求切到 `zh-CN`
+3. 启动本地 **CDN 路径代理**（保留 `/claude-ai/v2/assets/v1/` 路径）：
+   - 主 bundle 返回 patch 版本
+   - 其他 chunk 自动转发到 Anthropic CDN（避免黑屏）
+4. 页面注入兜底：自动把英文语言包请求切换为中文
 
 ## 安装
 
