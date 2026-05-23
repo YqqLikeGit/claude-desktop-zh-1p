@@ -1,6 +1,7 @@
 # Claude Desktop 官方账号简体中文 (macOS)
 
-**Author: RUDY YU** · yqq502503@gmail.com
+**Author: RUDY YU** · yqq502503@gmail.com  
+**Repository:** https://github.com/YqqLikeGit/claude-desktop-zh-1p
 
 为 **Claude Desktop 官方订阅账号（1p / claude.ai 在线界面）** 提供可用的简体中文界面。
 
