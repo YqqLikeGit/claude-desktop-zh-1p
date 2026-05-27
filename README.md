@@ -9,7 +9,7 @@
 
 > 如果你用的是 API 网关 / 3p 本地 UI，请优先用 [javaht/claude-desktop-zh-cn](https://github.com/javaht/claude-desktop-zh-cn)（900+ ⭐，支持 Win/Mac）。
 
-**Author:** RUDY YU · [GitHub](https://github.com/YqqLikeGit/claude-desktop-zh-1p)
+**Author:** RUDY YU · 更多黑话查 [AI 黑话词典](https://github.com/YqqLikeGit/ai-heihua-zh) · [GitHub](https://github.com/YqqLikeGit/claude-desktop-zh-1p)
 
 ---
 
