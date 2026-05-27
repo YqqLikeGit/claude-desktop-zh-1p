@@ -4,7 +4,7 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 PYTHON="/usr/bin/python3"
 
 echo "========================================"
-echo " Claude Desktop 官方账号简体中文 v4"
+echo " Claude Desktop 官方账号简体中文 v1.0"
 echo "========================================"
 echo ""
 echo "即将安装到 /Applications/Claude.app"
